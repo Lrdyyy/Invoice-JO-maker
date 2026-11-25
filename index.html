@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Invoice &amp; Job Order Maker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Orders">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Carlito:ital,wght@0,400;0,700;1,400&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -31,6 +39,17 @@
   #companySel:disabled{opacity:.7;cursor:not-allowed}
   main{display:grid;grid-template-columns:minmax(340px,460px) 1fr;gap:16px;padding:16px;align-items:start}
   @media (max-width:1000px){main{grid-template-columns:1fr}}
+  @media (max-width:640px){
+    header.top{position:static;padding:10px 10px calc(10px) ;padding-top:max(10px, env(safe-area-inset-top))}
+    header.top h1{display:none}
+    #companySel{flex:1}
+    main{padding:10px}
+    .modal .rec{grid-template-columns:1fr 1fr;row-gap:4px}
+    .modal .rec > div:last-child{grid-column:1/-1}
+    .modal .box{padding:14px}
+    .paperWrap{overflow-x:auto}
+    #paper{width:210mm;zoom:.46}
+  }
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
   .card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -49,6 +68,7 @@
   .photoRow .ph0{width:84px;height:60px;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px}
   body.mode-inv .jo-only{display:none!important}
   body.mode-jo .inv-only{display:none!important}
+  .bigbtn{display:block;width:100%;padding:14px;font-size:16px;font-weight:600;border-radius:12px;margin-bottom:6px}
   .banner{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px}
   .joq{font-size:15px;font-weight:600;margin:0 0 8px}
   .joq-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -118,15 +138,15 @@
   table.jo-tbl td:nth-child(2){width:33.5%;font-weight:700}
   table.jo-tbl td:nth-child(3){width:19%}
   .jo .red{color:#e00000;font-weight:700}
-  .jo-item{margin-top:46px}
-  .jo-item + .jo-item{margin-top:36px;padding-top:24px;border-top:1px dashed #bbb}
+  .jo-item{margin-top:28px;break-inside:avoid;page-break-inside:avoid}
+  .jo-item + .jo-item{margin-top:22px;padding-top:18px;border-top:1px dashed #bbb}
   .jo-item .itemno{font-weight:700;margin-bottom:6px}
   .jo-row{display:flex;gap:0}
   .jo-row .k{flex:none;width:184px}
   .jo-row .k.short{width:auto;margin-right:8px}
   .jo-qty{color:#e00000;font-weight:700;text-decoration:underline;margin-left:110px}
-  .jo-photo{display:block;width:100%;max-height:430px;object-fit:cover;margin-top:62px}
-  .jo-note{text-align:center;color:#e00000;font-weight:700;margin-top:64px;white-space:pre-line}
+  .jo-photo{display:block;width:100%;height:80mm;object-fit:cover;margin-top:14px;break-before:avoid;page-break-before:avoid}
+  .jo-note{text-align:center;color:#e00000;font-weight:700;margin-top:36px;white-space:pre-line;break-inside:avoid;page-break-inside:avoid}
 
   /* ================= MODALS ================= */
   .modal{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 12px;overflow:auto}
@@ -148,9 +168,9 @@
     header.top,.editor,.modal,.toast{display:none!important}
     main{display:block;padding:0}
     .paperWrap{overflow:visible}
-    #paper{box-shadow:none;width:210mm;min-height:auto;margin:0}
+    #paper{box-shadow:none;width:210mm;min-height:auto;margin:0;zoom:1}
     #paper,#paper *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .jo-item{break-inside:avoid}
+    .jo-item{break-inside:avoid;page-break-inside:avoid}
   }
 </style>
 </head>
@@ -167,7 +187,6 @@
   <button class="btn inv-only" id="btnNew">+ New invoice</button>
   <button class="btn" id="btnRecords">Records</button>
   <button class="btn" id="btnSettings">Company settings</button>
-  <button class="btn primary inv-only" id="btnSave">Create invoice</button>
   <button class="btn" id="btnPrint">Print / Save PDF</button>
 </header>
 
@@ -175,12 +194,11 @@
   <section class="editor">
     <!-- ============ INVOICE FORM ============ -->
     <div class="inv-only">
-      <div class="banner" id="invBanner" style="display:none"></div>
 
       <div class="card">
         <h3>Invoice</h3>
         <div class="grid2">
-          <div class="f"><label>Invoice no.</label><input data-k="number"></div>
+          <div class="f"><label>Invoice no. <span style="font-size:11px">(you can edit this)</span></label><input data-k="number"></div>
           <div class="f"><label>Date</label><input type="date" data-k="date"></div>
           <div class="f full"><label>Payment status (for your records only)</label>
             <select data-k="payStatus"><option>Unpaid</option><option>Downpayment received</option><option>Fully paid</option></select>
@@ -220,9 +238,12 @@
         <p class="hint" style="margin:0 0 10px">Only printed on the job order. Fill these in now and you won't have to type them again.</p>
         <div class="grid2">
           <div class="f full"><label>Deadline</label><input type="date" data-k="deadline"></div>
-          <div class="f full"><label>Note (one per line)</label><textarea data-k="joNote" rows="2" placeholder="e.g. NAA NANI TARP"></textarea></div>
+          <div class="f full"><label>Note (one per line)</label><textarea data-k="joNote" rows="2"></textarea></div>
         </div>
       </details>
+
+      <button class="btn primary bigbtn" id="btnSave">Create invoice</button>
+      <div class="banner" id="invBanner" style="display:none;margin-top:12px"></div>
     </div>
 
     <!-- ============ JOB ORDER: one question ============ -->
@@ -243,7 +264,8 @@
 <div class="modal" id="mRecords"><div class="box">
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
     <h2 style="margin:0">Saved records</h2><div class="sp"></div>
-    <button class="btn sm" id="btnExport">Export backup</button>
+    <button class="btn sm primary" id="btnCsv">Save CSV</button>
+    <button class="btn sm" id="btnExport">Export backup (with photos)</button>
     <label class="btn sm" style="margin:0">Import backup<input type="file" id="importFile" accept=".json" hidden></label>
     <button class="btn sm" data-close>Close</button>
   </div>
@@ -252,6 +274,10 @@
     <select id="recFilter"></select>
   </div>
   <div id="recList"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap">
+    <span class="muted" style="font-size:12px;flex:1;min-width:200px" id="storeInfo"></span>
+    <button class="btn sm danger" id="btnClearAll">Clear all records…</button>
+  </div>
 </div></div>
 
 <!-- Settings -->
@@ -342,25 +368,68 @@
     p.setProperty('--logo-border', t.logoBorder); p.setProperty('--logo-bg', t.logoBg); p.setProperty('--logo-ink', t.logoInk);
   }
 
+  // ---------- input checks (stored data and imported backups are treated as untrusted) ----------
+  const SAFE_IMG = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=]+$/;
+  const safeImg = v => (typeof v === 'string' && SAFE_IMG.test(v)) ? v : '';
+  const safeId = v => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v)) ? v : uid();
+  const str = (v, max = 5000) => v == null ? '' : String(v).slice(0, max);
+  const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  const safeDate = v => /^\d{4}-\d{2}-\d{2}$/.test(str(v)) ? v : '';
+  function cleanCompany(c){
+    if(!c || typeof c !== 'object') return null;
+    const o = { id: safeId(c.id) };
+    ['name','brand','tagline','address','social','email','viber','payIntro','payment','terms'].forEach(k => o[k] = str(c[k]));
+    o.color = /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#334155';
+    o.logo = safeImg(c.logo); o.joLogo = safeImg(c.joLogo);
+    return o;
+  }
+  function cleanRecord(r){
+    if(!r || typeof r !== 'object' || (r.type !== 'INV' && r.type !== 'JO')) return null;
+    const o = { type: r.type, id: safeId(r.id), companyId: str(r.companyId, 64), number: str(r.number, 40) };
+    ['payStatus','custName','custPhone','custAddress','joNote','savedAt'].forEach(k => o[k] = str(r[k]));
+    o.date = safeDate(r.date); o.joDate = safeDate(r.joDate);
+    o.deadline = safeDate(r.deadline ?? r.targetDate ?? r.installDate);
+    o.deliveryFee = num(r.deliveryFee); o.installFee = num(r.installFee ?? r.fee); o.paid = num(r.paid); o.discount = num(r.discount);
+    o.vat = !!r.vat;
+    if(r.type === 'JO') o.invoiceId = str(r.invoiceId, 64);
+    o.items = (Array.isArray(r.items) ? r.items : []).slice(0, 200).map(i => ({
+      name: str(i?.name ?? i?.desc), dims: str(i?.dims ?? i?.size), details: str(i?.details),
+      qty: num(i?.qty ?? 1), price: num(i?.price), photo: safeImg(i?.photo) }));
+    return o;
+  }
+
   // ---------- load + migrate ----------
   let companies = (await DB.get('companies')) || LS.get('iom_companies', null) || Object.values(DEFAULTS);
-  companies = companies.map(c => {
-    const d = DEFAULTS[c.id] || {brand:(c.name||'').toLowerCase(), tagline:'', address:'', social:'', email:'', viber:c.phone||'', payIntro:'', payment:'', terms:'', logo:'', joLogo:''};
+  companies = (Array.isArray(companies) ? companies : []).map(c => {
+    if(!c || typeof c !== 'object') return null;
+    const d = DEFAULTS[c.id] || {brand:str(c.name).toLowerCase(), tagline:'', address:'', social:'', email:'', viber:str(c.phone), payIntro:'', payment:'', terms:'', logo:'', joLogo:''};
     const out = {...d, ...c};
     Object.keys(d).forEach(k => { if(out[k] === '' || out[k] == null || (k==='terms' && out[k]===OLD_TERMS)) out[k] = d[k]; });
-    return out;
-  });
+    return cleanCompany(out);
+  }).filter(Boolean);
   Object.values(DEFAULTS).forEach(d => { if(!companies.some(c => c.id===d.id)) companies.push(clone(d)); });
 
   let records = (await DB.get('records')) || LS.get('iom_records', []);
-  records.forEach(r => {
-    r.items = (r.items||[]).map(i => ({ name: i.name ?? i.desc ?? '', dims: i.dims ?? i.size ?? '', details: i.details ?? '', qty: i.qty ?? 1, price: i.price ?? 0, photo: i.photo || '' }));
-    if(r.deliveryFee == null) r.deliveryFee = 0;
-    if(r.installFee == null) r.installFee = r.fee || 0;
-    if(r.deadline == null) r.deadline = r.targetDate || r.installDate || '';
-    if(r.joNote == null) r.joNote = '';
-  });
+  records = (Array.isArray(records) ? records : []).map(cleanRecord).filter(Boolean);
 
+  // Counters: the last number used per series & year, e.g. {INV:{2026:190}, JO:{2026:128}}
+  let seq = (await DB.get('seq')) || LS.get('iom_seq', {});
+  if(!seq.INV){ seq = {INV: Object.assign({}, seq), JO:{}}; }   // migrate older format
+  const saveSeq = () => { DB.set('seq', seq); LS.set('iom_seq', seq); };
+  const parseNo = (prefix, n) => { const m = String(n||'').trim().match(new RegExp('^' + prefix + '-(\\d{4})-(\\d+)$', 'i')); return m ? {y:m[1], n:+m[2]} : null; };
+  // Record a saved number so the next one always continues from it.
+  // If the latest number is corrected (e.g. typo 1900 -> 0190), the counter follows the correction.
+  function noteNumber(prefix, oldNo, newNo){
+    const s = seq[prefix], od = parseNo(prefix, oldNo), nw = parseNo(prefix, newNo);
+    if(od && od.n === Number(s[od.y]) && oldNo !== newNo) s[od.y] = 0;
+    if(nw) s[nw.y] = Math.max(Number(s[nw.y])||0, nw.n);
+    saveSeq();
+  }
+  function nextNumber(prefix, year){
+    let max = Number(seq[prefix][year]) || 0;
+    records.filter(r => r.type===prefix).forEach(r => { const p = parseNo(prefix, r.number); if(p && p.y===year) max = Math.max(max, p.n); });
+    return `${prefix}-${year}-${String(max+1).padStart(4,'0')}`;
+  }
   const saveCompanies = () => DB.set('companies', companies);
   const saveRecords = () => DB.set('records', records);
 
@@ -370,12 +439,8 @@
   const joFor = id => records.find(r => r.type==='JO' && r.invoiceId===id);
 
   // ---------- numbering: INV-2026-0001 ----------
-  function nextInvoiceNumber(dateStr){
-    const y = (dateStr || today()).slice(0,4), re = new RegExp('^INV-' + y + '-(\\d+)$');
-    let max = 0; invoices().forEach(r => { const m = String(r.number).match(re); if(m) max = Math.max(max, +m[1]); });
-    return `INV-${y}-${String(max+1).padStart(4,'0')}`;
-  }
-  const joNumberFor = n => /^INV-/.test(n) ? n.replace(/^INV-/,'JO-') : 'JO-' + n;
+  const nextInvoiceNumber = dateStr => nextNumber('INV', (dateStr || today()).slice(0,4));
+  const nextJONumber = () => nextNumber('JO', today().slice(0,4));
   const blankItem = () => ({name:'', dims:'', details:'', qty:1, price:0, photo:''});
   function blankInvoice(companyId){
     const d = today();
@@ -386,7 +451,7 @@
   function buildJO(i, existing){
     const jo = clone(i);
     Object.assign(jo, { type:'JO', id: existing ? existing.id : uid(), invoiceId: i.id,
-      number: existing ? existing.number : joNumberFor(i.number), joDate: existing ? existing.joDate : today(), savedAt: new Date().toISOString() });
+      number: existing ? existing.number : nextJONumber(), joDate: existing ? existing.joDate : today(), savedAt: new Date().toISOString() });
     return jo;
   }
   function totals(d){
@@ -399,14 +464,14 @@
 
   // ---------- selects ----------
   function renderCompanySelects(){
-    const o = companies.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    const o = companies.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
     $('#companySel').innerHTML = o; $('#setCo').innerHTML = o; $('#recFilter').innerHTML = '<option value="">All companies</option>' + o;
   }
   function renderJoInvoiceSelect(){
     const list = invoices();
     if(!list.length){ $('#joInvSel').innerHTML = '<option value="">— no invoices yet —</option>'; joInvoiceId=''; return; }
     if(!list.some(r => r.id===joInvoiceId)) joInvoiceId = list[0].id;
-    $('#joInvSel').innerHTML = list.map(r => `<option value="${r.id}">${esc(r.number)} — ${esc(r.custName)} (${esc(companyOf(r.companyId).name)})${joFor(r.id)?' ✓':''}</option>`).join('');
+    $('#joInvSel').innerHTML = list.map(r => `<option value="${esc(r.id)}">${esc(r.number)} — ${esc(r.custName)} (${esc(companyOf(r.companyId).name)})${joFor(r.id)?' ✓':''}</option>`).join('');
     $('#joInvSel').value = joInvoiceId;
   }
   function setMode(m){
@@ -428,13 +493,13 @@
       <div class="item" data-i="${i}">
         <div class="ttl">Item ${i+1}</div>
         <button class="btn sm danger x" data-del="${i}" title="Remove item">✕</button>
-        <div class="f full"><label>Item name</label><input data-ik="name" value="${esc(it.name)}" placeholder="RECTANGLE MIRROR WITH CURVED SIDES"></div>
-        <div class="f full"><label>Dimensions</label><input data-ik="dims" value="${esc(it.dims)}" placeholder="200cm L x 90cm H"></div>
-        <div class="f full"><label>Details (one per line)</label><textarea data-ik="details" rows="3" placeholder="using 6mm thick copper-free mirror&#10;with Tri-color Backlights (Warm Yellow, Warm White and Bright White)&#10;with Single Touch Switch System">${esc(it.details)}</textarea></div>
+        <div class="f full"><label>Item name</label><input data-ik="name" value="${esc(it.name)}"></div>
+        <div class="f full"><label>Dimensions</label><input data-ik="dims" value="${esc(it.dims)}"></div>
+        <div class="f full"><label>Details (one per line)</label><textarea data-ik="details" rows="3">${esc(it.details)}</textarea></div>
         <div class="f"><label>Qty</label><input type="number" min="0" step="any" data-ik="qty" value="${esc(it.qty)}"></div>
         <div class="f"><label>Unit price (Php)</label><input type="number" min="0" step="0.01" data-ik="price" value="${esc(it.price)}"></div>
         <div class="photoRow">
-          ${it.photo ? `<img src="${it.photo}" alt="">` : '<div class="ph0">No photo</div>'}
+          ${it.photo ? `<img src="${esc(safeImg(it.photo))}" alt="">` : '<div class="ph0">No photo</div>'}
           <button class="btn sm" data-photo="${i}">${it.photo ? 'Change photo' : '📷 Add photo'}</button>
           ${it.photo ? `<button class="btn sm danger" data-unphoto="${i}">Remove</button>` : ''}
           <div class="sp"></div><div class="amt">Php ${money((Number(it.qty)||0)*(Number(it.price)||0))}</div>
@@ -457,9 +522,20 @@
     if(!i){ btn.disabled = true; btn.textContent = 'Create job order'; $('#joInfo').textContent = 'Create an invoice first — then pick it here.'; return null; }
     btn.disabled = !!jo; btn.textContent = jo ? `Created: ${jo.number}` : 'Create job order';
     $('#joInfo').innerHTML = jo
-      ? `Job order <b>${esc(jo.number)}</b> was created ${fmtLong(jo.joDate).toLowerCase()}. Changes to the invoice update it automatically. <a href="#" id="editInv">Edit invoice</a>`
+      ? `Job order <b>${esc(jo.number)}</b> was created ${fmtLong(jo.joDate).toLowerCase()}. Changes to the invoice update it automatically. <a href="#" id="editInv">Edit invoice</a>
+         <div class="joq-row" style="margin-top:10px"><label for="joNoEdit" style="font-size:12px;color:var(--muted)">JO no.</label>
+         <input id="joNoEdit" value="${esc(jo.number)}" style="flex:1;min-width:150px"><button class="btn sm" id="btnJoNo">Save JO no.</button></div>`
       : `Everything from <b>${esc(i.number)}</b> (client, items, photos, deadline, note) will be copied. Preview on the right.`;
     const ei = $('#editInv'); if(ei) ei.onclick = e => { e.preventDefault(); inv = clone(i); dirty=false; setMode('INV'); fillForm(); };
+    const bj = $('#btnJoNo'); if(bj) bj.onclick = async () => {
+      const v = $('#joNoEdit').value.trim();
+      if(!v){ toast('JO number is empty'); return; }
+      if(v === jo.number){ toast('No change'); return; }
+      if(records.some(r => r.type==='JO' && r.number===v && r.id!==jo.id)){ toast(`${v} is already used`); return; }
+      const old = jo.number; jo.number = v; await saveRecords(); noteNumber('JO', old, v);
+      renderJoInvoiceSelect(); refresh(); toast(`Job order number changed to ${v} — next will be ${nextJONumber()}`);
+    };
+    const je = $('#joNoEdit'); if(je) je.onkeydown = e => { if(e.key==='Enter') $('#btnJoNo').click(); };
     return jo || buildJO(i);
   }
 
@@ -489,7 +565,7 @@
     const items = d.items.filter(i => i.name || i.dims || i.details || Number(i.price) || i.photo);
     const rows = items.map((i,n) => `
       <tr>
-        <td class="ph">${i.photo ? `<img src="${i.photo}" alt="">` : ''}</td>
+        <td class="ph">${i.photo ? `<img src="${esc(safeImg(i.photo))}" alt="">` : ''}</td>
         <td class="desc">Item ${n+1}
           ${i.name ? `<b>${esc(i.name.toUpperCase())}</b>` : ''}
           ${i.dims ? `<b>Dimensions: ${esc(i.dims)}</b>` : ''}
@@ -530,7 +606,7 @@
       ${c.payment ? `<p class="iv-acct">${esc(c.payment)}</p>` : ''}
       ${termLines.length ? `<div class="iv-th">TERMS AND CONDITIONS</div><div class="iv-terms">${termLines.map((l,k) => `<div${k===termLines.length-1 && termLines.length>3 ? ' class="l"' : ''}>${esc(l)}</div>`).join('')}</div>` : ''}
       <div class="iv-foot">
-        ${c.logo ? `<img class="logo" src="${c.logo}" alt="">` : ''}
+        ${c.logo ? `<img class="logo" src="${esc(safeImg(c.logo))}" alt="">` : ''}
         <div><div class="brand">${esc(c.brand || c.name)}</div>${c.tagline ? `<div class="tg">${esc(c.tagline)}</div>` : '<div style="height:8px"></div>'}
           ${c.address ? `<div class="addr">${esc(c.address)}</div>` : ''}${contact}</div>
       </div>
@@ -549,11 +625,11 @@
         <div class="jo-row"><span class="k">DETAILS:</span><span>${esc(det)}</span></div>
         <div><span class="k">DIMENSIONS:</span> <b>${esc(i.dims)}</b></div>
         <div>QUANTITY: <span class="jo-qty">${qtyText(i.qty)}</span></div>
-        ${i.photo ? `<img class="jo-photo" src="${i.photo}" alt="">` : ''}
+        ${i.photo ? `<img class="jo-photo" src="${esc(safeImg(i.photo))}" alt="">` : ''}
       </div>`; }).join('');
     const note = lines(d.joNote).map(l => l.startsWith('*') ? l : '*' + l).join('\n');
     return `<div class="jo">
-      <div class="jo-logo">${c.joLogo ? `<img src="${c.joLogo}" alt="">` : `<div class="txt">${esc(c.name)}</div>`}</div>
+      <div class="jo-logo">${c.joLogo ? `<img src="${esc(safeImg(c.joLogo))}" alt="">` : `<div class="txt">${esc(c.name)}</div>`}</div>
       <table class="jo-tbl">
         <tr><td>JOB ORDER NO:</td><td>${esc(d.number)}</td><td>DATE:</td><td>${fmtLong(d.joDate)}</td></tr>
         <tr><td>CLIENT'S NAME</td><td>${esc(d.custName)}</td><td>DEADLINE:</td><td class="red">${fmtLong(d.deadline)}</td></tr>
@@ -614,13 +690,15 @@
     if(!inv.custName.trim()){ toast("Add the client's name first"); $('[data-k=custName]').focus(); return; }
     if(!inv.number.trim()){ toast('Invoice number is empty'); return; }
     if(invoices().some(r => r.number===inv.number && r.id!==inv.id)){ toast(`${inv.number} is already used — change the number`); return; }
+    inv.number = inv.number.trim();
     const isNew = !inv.savedAt; inv.savedAt = new Date().toISOString();
-    const i = records.findIndex(r => r.id===inv.id);
+    const i = records.findIndex(r => r.id===inv.id), oldNumber = i>=0 ? records[i].number : null;
     if(i>=0) records[i] = clone(inv); else records.unshift(clone(inv));
-    const jo = joFor(inv.id); if(jo) records[records.indexOf(jo)] = buildJO(inv, jo);
-    const ok = await saveRecords(); dirty = false; renderBanner();
+    let jo = joFor(inv.id);
+    if(jo){ const updated = buildJO(inv, jo); records[records.indexOf(jo)] = updated; jo = updated; }
+    const ok = await saveRecords(); if(ok) noteNumber('INV', oldNumber, inv.number); dirty = false; renderBanner();
     toast(!ok ? "Couldn't save — browser storage is full or blocked"
-       : isNew ? `Invoice ${inv.number} created` : jo ? `Updated ${inv.number} and ${jo.number}` : `Updated ${inv.number}`);
+       : isNew ? `Invoice ${inv.number} created — next will be ${nextInvoiceNumber(inv.date)}` : jo ? `Updated ${inv.number} and ${jo.number}` : `Updated ${inv.number}`);
   }
   $('#btnSave').onclick = saveInvoice;
   document.addEventListener('keydown', e => { if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); if(mode==='INV') saveInvoice(); } });
@@ -631,7 +709,7 @@
   $('#joInvSel').onchange = e => { joInvoiceId = e.target.value; refresh(); };
   $('#btnCreateJO').onclick = async () => {
     const i = records.find(r => r.id===joInvoiceId); if(!i || joFor(i.id)) return;
-    const jo = buildJO(i); records.unshift(jo); await saveRecords();
+    const jo = buildJO(i); records.unshift(jo); await saveRecords(); noteNumber('JO', null, jo.number);
     renderJoInvoiceSelect(); refresh(); toast(`Job order ${jo.number} created`);
   };
 
@@ -657,12 +735,13 @@
         <div>${fmtShort(r.date)}</div>
         <div><b>Php ${money(totals(r).gross)}</b><div class="muted" style="font-size:12px">${esc(r.payStatus)}</div></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="btn sm" data-open="${r.id}">Invoice</button>
-          ${jo ? `<button class="btn sm" data-openjo="${r.id}">Job order</button>` : ''}
-          <button class="btn sm" data-dupl="${r.id}">Copy</button>
-          <button class="btn sm danger" data-rm="${r.id}">Delete</button>
+          <button class="btn sm" data-open="${esc(r.id)}">Invoice</button>
+          ${jo ? `<button class="btn sm" data-openjo="${esc(r.id)}">Job order</button>` : ''}
+          <button class="btn sm" data-dupl="${esc(r.id)}">Copy</button>
+          <button class="btn sm danger" data-rm="${esc(r.id)}">Delete</button>
         </div></div>`; }).join('')
       : '<p class="muted">No invoices yet. Fill in the form and press <b>Create invoice</b>.</p>';
+    renderStoreInfo();
   }
   $('#recList').addEventListener('click', async e => {
     const b = e.target, close = () => $('#mRecords').classList.remove('open'); let id;
@@ -678,19 +757,75 @@
       else { b.dataset.sure = 1; b.textContent = 'Confirm?'; setTimeout(() => { if(b.isConnected){ delete b.dataset.sure; b.textContent = 'Delete'; } }, 3000); }
     }
   });
-  $('#btnExport').onclick = () => {
-    try{ const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([JSON.stringify({companies, records, exportedAt:new Date().toISOString()})], {type:'application/json'}));
-      a.download = `orders-backup-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('Backup downloaded');
-    }catch(e){ toast('Download blocked here'); }
+  // ---------- file saving (download, or share sheet on iPhone home-screen app) ----------
+  async function saveFile(blob, name){
+    const standaloneIOS = /iP(hone|ad|od)/.test(navigator.userAgent) && (navigator.standalone || matchMedia('(display-mode: standalone)').matches);
+    if(standaloneIOS && navigator.canShare){
+      const file = new File([blob], name, {type: blob.type});
+      if(navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:name}); return true; }catch(e){ if(e.name==='AbortError') return false; } }
+    }
+    try{ const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000); return true;
+    }catch(e){ toast('Download blocked here — open the installed app'); return false; }
+  }
+  let lastBackupAt = LS.get('iom_lastBackup', null);
+  const markBackup = () => { lastBackupAt = new Date().toISOString(); LS.set('iom_lastBackup', lastBackupAt); renderStoreInfo(); };
+
+  // ---------- CSV: one row per item, invoice details repeated ----------
+  function buildCSV(){
+    const cell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const head = ['Invoice No','JO No','Company','Invoice Date','Client Name','Contact Number','Address','Payment Status',
+      'Item #','Item Name','Dimensions','Details','Qty','Unit Price','Line Total','Has Photo',
+      'Items Total','Delivery Fee','Installation Fee','Discount','VAT','Downpayment','Grand Total',
+      'JO Date','Deadline','JO Note','Saved At'];
+    const rows = [head];
+    invoices().slice().sort((a,b) => String(a.number).localeCompare(String(b.number))).forEach(r => {
+      const t = totals(r), jo = joFor(r.id), items = r.items.length ? r.items : [blankItem()];
+      items.forEach((i,n) => rows.push([r.number, jo?.number || '', companyOf(r.companyId).name, r.date, r.custName, r.custPhone, r.custAddress, r.payStatus,
+        n+1, i.name, i.dims, lines(i.details).join(' | '), i.qty, Number(i.price)||0, (Number(i.qty)||0)*(Number(i.price)||0), i.photo ? 'Yes' : 'No',
+        t.sub.toFixed(2), t.del.toFixed(2), t.ins.toFixed(2), t.disc.toFixed(2), t.vat.toFixed(2), t.paid.toFixed(2), t.grand.toFixed(2),
+        jo?.joDate || '', r.deadline || '', lines(r.joNote).join(' | '), r.savedAt || '']));
+    });
+    return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n');   // BOM so Excel reads ₱/ñ correctly
+  }
+  $('#btnCsv').onclick = async () => {
+    if(!invoices().length){ toast('No invoices to save yet'); return; }
+    if(await saveFile(new Blob([buildCSV()], {type:'text/csv;charset=utf-8'}), `orders-${today()}.csv`)){ markBackup(); toast('CSV saved'); }
+  };
+  $('#btnExport').onclick = async () => {
+    const blob = new Blob([JSON.stringify({companies, records, exportedAt:new Date().toISOString()})], {type:'application/json'});
+    if(await saveFile(blob, `orders-backup-${today()}.json`)){ markBackup(); toast('Backup saved'); }
+  };
+  function renderStoreInfo(){
+    const n = invoices().length;
+    $('#storeInfo').textContent = `${n} invoice${n===1?'':'s'} stored on this device · ` +
+      (lastBackupAt ? `last backup ${new Date(lastBackupAt).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'})}` : 'no backup saved yet');
+  }
+  $('#btnClearAll').onclick = async e => {
+    const b = e.currentTarget;
+    if(!records.length){ toast('Nothing to clear'); return; }
+    if(!b.dataset.sure){
+      b.dataset.sure = 1; b.textContent = lastBackupAt ? 'Tap again to delete everything' : 'No backup yet! Tap again to delete anyway';
+      setTimeout(() => { if(b.isConnected){ delete b.dataset.sure; b.textContent = 'Clear all records…'; } }, 4000); return;
+    }
+    records.forEach(r => noteNumber(r.type, null, r.number));   // remember where numbering was, so it continues after clearing
+    records = []; await saveRecords(); inv = blankInvoice(inv.companyId); dirty = false;
+    delete b.dataset.sure; b.textContent = 'Clear all records…';
+    fillForm(); setMode('INV'); renderRecords(); toast('All records cleared (company settings kept)');
   };
   $('#importFile').onchange = async e => {
     const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+    if(f.size > 200*1024*1024){ toast('That file is too large to be a backup'); return; }
     try{ const d = JSON.parse(await f.text());
-      if(Array.isArray(d.companies) && d.companies.length) companies = d.companies;
-      if(Array.isArray(d.records)){ const ids = new Set(records.map(r => r.id)); d.records.forEach(r => { if(!ids.has(r.id)) records.push(r); }); }
+      if(!d || typeof d !== 'object' || !Array.isArray(d.records)) throw new Error('not a backup');
+      const cos = Array.isArray(d.companies) ? d.companies.map(cleanCompany).filter(Boolean) : [];
+      if(cos.length) companies = cos;
+      const ids = new Set(records.map(r => r.id));
+      let added = 0, skipped = 0;
+      d.records.forEach(raw => { const r = cleanRecord(raw); if(!r){ skipped++; return; } if(!ids.has(r.id)){ records.push(r); ids.add(r.id); added++; } });
       await saveCompanies(); await saveRecords();
-      renderCompanySelects(); renderRecords(); if(mode==='JO') renderJoInvoiceSelect(); refresh(); toast('Backup imported');
+      renderCompanySelects(); renderRecords(); if(mode==='JO') renderJoInvoiceSelect(); refresh(); toast(`Backup imported: ${added} added` + (skipped ? `, ${skipped} invalid entries ignored` : ''));
     }catch(err){ toast('That file is not a valid backup'); }
   };
 
@@ -720,6 +855,10 @@
 
   // ---------- init ----------
   saveCompanies(); if(records.length) saveRecords();
+  try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}   // ask the phone not to auto-clear data
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    try{ navigator.serviceWorker.register('sw.js').catch(() => {}); }catch(e){}
+  }
   renderCompanySelects();
   inv = blankInvoice(companies[0].id);
   fillForm(); setMode('INV');
